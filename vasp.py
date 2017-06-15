@@ -5,20 +5,19 @@ Created on Thu Jun 15 09:45:43 2017
 @author: pyh
 """
 
-def Readvasprun():
+def readvasprun():
     import numpy as np
     import re
     fid = open('vasprun.xml','rt')
     lc = np.mat(np.zeros((3,3)))
-    fir = True
-    while fir == True:
+    while True:
         line = fid.readline()
         if 'NSW' in line:
             line = re.findall('(?<=> ).*(?=<)',line)
             nstep = int(line[0])
         if 'POTIM' in line:
-            line = re.findall('(?<=> ).*(?=<)',line)
-            step = int(line[0])
+            line = re.findall('(?<=>).*(?=<)',line)
+            potim = float(line[0])
         if '<atoms>' in line:
             line = re.findall('(?<=> ).*(?=<)',line)
             natom = int(line[0])            
@@ -28,24 +27,25 @@ def Readvasprun():
                 line = line.replace('<v>','')
                 line = line.replace('</v>','')
                 lc[direct,:] = np.mat(line)
-                fir = False                          
+            break
     posa=[None]*(nstep+1)
-    pos=np.mat(np.zeros((natom,3)))
+    for i in range(nstep+1):
+        posa[i]=np.mat(np.zeros((natom,3)))
         
     step=0
     atom=0        
-    while step <= nstep or not line:
+    while step <= nstep:
         line = fid.readline()
-        if 'name="positions"' in line:
+        if 'positions' in line:
             for atom in range(natom):
                 line = fid.readline()
                 line = line.replace('<v>','')
                 line = line.replace('</v>','')
-                pos[atom,:] = np.mat(line)
-            posa[step]=pos
+                posa[step][atom,:] = np.mat(line)
             step += 1
+            print(step) #测试
     fid.close()
-    return step,nstep,natom,lc,posa
+    return potim,nstep+1,natom,lc,posa
 
 def readCONTCAR():
     import numpy as np
@@ -70,6 +70,26 @@ def readCONTCAR():
         ap[i,:]=np.mat(line)
     fid.close()
     return lc,ap
+
+def writepos(pos,vel=None):
+    fido = open('POSCAR','rt')
+    fidn = open('new_POSCAR','wt')
+    while True:
+        line=fido.readline()
+        print(line[0:(len(line)-1)],file=fidn)
+        if 'Direct' in line:
+            break
+    fido.close()
+    for i in range(len(pos)):
+        for j in range(3):
+            print('%.16f' % pos[i,j],file=fidn,end=' ') 
+        print('',file=fidn)
+    print('',file=fidn)
+    if vel != None:
+        for i in range(len(pos)):
+            for j in range(3):
+                print('%.12e' % vel[i,j],file=fidn,end=' ') 
+            print('',file=fidn)
 
 def nearby(lc,arg1,arg2):
     import numpy as np
@@ -121,18 +141,59 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     cita=math.acos(ll1*np.transpose(ll2)/math.sqrt((ll1*np.transpose(ll1))*(ll2*np.transpose(ll2))))*180/math.pi
     return cita
 
-def velcal(lc,posa,step):
+def velcal(lc,posa,potim):
     import numpy as np
     import vasp
     vela = [0]*(len(posa)-2)
     for i in range(len(vela)):
         vela[i]=np.mat(np.zeros((len(posa[1]),3)))
     for i in range(len(posa)-2):
+        print(i) #测试
         for j in range(len(posa[1])):
-            print(posa[i+2][j,:])
             posa[i+2][j,:]=vasp.nearby(lc,posa[i][j,:],posa[i+2][j,:])
-            print(posa[i+2][j,:])
-            vela[i][j,:]=(posa[i+2][j,:]-posa[i][j,:])*lc/(2*step)
+            vela[i][j,:]=(posa[i+2][j,:]-posa[i][j,:])*lc/(2*potim)
     return vela
 
-#def findmax
+def findlimit(vela,num,direct):
+    import numpy as np
+    num -=1
+    if direct == 'x' or direct == 'X':
+        direct = 0
+    elif direct == 'y' or direct == 'Y':
+        direct = 1
+    else:
+        direct = 2
+    fvmax=0
+    fvmin=0
+    vmax=float(vela[0][num,direct])
+    vmin=float(vela[0][num,direct])
+    for i in range(len(vela)):
+        if np.all(vmax < float(vela[i][num,direct])):
+            vmax = float(vela[i][num,direct])
+            fvmax = i
+        if np.all(vmin > float(vela[i][num,direct])):
+            vmax = float(vela[i][num,direct])
+            fvmin = i
+    return fvmax+1,fvmin+1,vela[fvmax],vela[fvmin]
+
+def checkaway(lc,posa,vela,num):
+    import numpy as np
+    import math
+    import vasp
+    num -= 1
+    nstep = len(posa)
+    for n in range(7):
+        step=int((n+1)*nstep/8)
+        posa[step][num,:]=vasp.nearby(lc,posa[0][num,:],posa[step][num,:])
+        dp=(posa[step][num,:]-posa[0][num,:])*lc
+        dis = math.sqrt(dp*np.transpose(dp))
+        if dis >8:
+            check = False
+            break
+        elif dis > 5:
+            dir=dp*np.transpose(vela[step][num,:])
+            if dir > 0:
+                check = False
+                break
+        check = True
+    return check
