@@ -197,3 +197,5 @@ def checkaway(lc,posa,vela,num):
                 break
         check = False
     return check
+
+#还需两个函数：二分法函数/创建新的目录及目录下的输入文件并移动到该目录下的函数
