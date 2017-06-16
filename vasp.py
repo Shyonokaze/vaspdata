@@ -5,7 +5,7 @@ Created on Thu Jun 15 09:45:43 2017
 @author: pyh
 """
 
-def readvasprun():
+def readvasprun(): #此函数需用直接读取xml包重写
     import numpy as np
     import re
     fid = open('vasprun.xml','rt')
@@ -30,8 +30,7 @@ def readvasprun():
             break
     posa=[None]*(nstep+1)
     for i in range(nstep+1):
-        posa[i]=np.mat(np.zeros((natom,3)))
-        
+        posa[i]=np.mat(np.zeros((natom,3)))        
     step=0
     atom=0        
     while step <= nstep:
@@ -47,10 +46,10 @@ def readvasprun():
     fid.close()
     return potim,nstep+1,natom,lc,posa
 
-def readCONTCAR():
+def readpos(file): #此函数需针对selective dynamiscs的情况增加功能
     import numpy as np
     lc=np.mat(np.zeros((3,3)));
-    fid = open('CONTCAR','rt')
+    fid = open(file,'rt')
     line = fid.readline()
     line = fid.readline()
     for i in range(0,3):
@@ -71,8 +70,8 @@ def readCONTCAR():
     fid.close()
     return lc,ap
 
-def writepos(pos,vel=None):
-    fido = open('POSCAR','rt')
+def writepos(file,pos,vel=None):
+    fido = open(file,'rt')
     fidn = open('new_POSCAR','wt')
     while True:
         line=fido.readline()
@@ -91,7 +90,7 @@ def writepos(pos,vel=None):
                 print('%.12e' % vel[i,j],file=fidn,end=' ') 
             print('',file=fidn)
 
-def nearby(lc,arg1,arg2):
+def nearby(lc,arg1,arg2): 
     import numpy as np
     new_pos=arg2
     dp1=arg1*lc
@@ -115,8 +114,8 @@ def bond_length(ap,lc,arg1,arg2):
     import numpy as np
     import vasp
     import math
-    arg1=arg1-1
-    arg2=arg2-1
+    arg1 -=1
+    arg2 -=1
     ap[arg2,:]=vasp.nearby(lc,ap[arg1,:],ap[arg2,:])
     dp1=ap[arg1,:]*lc
     dp2=ap[arg2,:]*lc
@@ -128,9 +127,9 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     import numpy as np
     import vasp
     import math
-    arg1=arg1-1
-    arg2=arg2-1
-    arg3=arg3-1
+    arg1 -=1
+    arg2 -=1
+    arg3 -=1
     ap[arg1,:]=vasp.nearby(lc,ap[arg2,:],ap[arg1,:])
     ap[arg3,:]=vasp.nearby(lc,ap[arg2,:],ap[arg3,:])
     dp1=ap[arg1,:]*lc
@@ -141,7 +140,7 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     cita=math.acos(ll1*np.transpose(ll2)/math.sqrt((ll1*np.transpose(ll1))*(ll2*np.transpose(ll2))))*180/math.pi
     return cita
 
-def velcal(lc,posa,potim):
+def velcal(lc,posa,potim): #须针对只对一个原子计算速度的情况增加功能
     import numpy as np
     import vasp
     vela = [0]*(len(posa)-2)
@@ -158,11 +157,12 @@ def findlimit(vela,num,direct):
     import numpy as np
     num -=1
     if direct == 'x' or direct == 'X':
-        direct = 0
-    elif direct == 'y' or direct == 'Y':
         direct = 1
-    else:
+    elif direct == 'y' or direct == 'Y':
         direct = 2
+    elif  direct == 'z' or direct == 'Z':
+        direct = 3
+    direct -=1
     fvmax=0
     fvmin=0
     vmax=float(vela[0][num,direct])
@@ -174,7 +174,7 @@ def findlimit(vela,num,direct):
         if np.all(vmin > float(vela[i][num,direct])):
             vmax = float(vela[i][num,direct])
             fvmin = i
-    return fvmax+1,fvmin+1,vela[fvmax],vela[fvmin]
+    return fvmax,fvmin,vela[fvmax],vela[fvmin]
 
 def checkaway(lc,posa,vela,num):
     import numpy as np
@@ -188,12 +188,12 @@ def checkaway(lc,posa,vela,num):
         dp=(posa[step][num,:]-posa[0][num,:])*lc
         dis = math.sqrt(dp*np.transpose(dp))
         if dis >8:
-            check = False
+            check = True
             break
         elif dis > 5:
             dir=dp*np.transpose(vela[step][num,:])
             if dir > 0:
-                check = False
+                check = True
                 break
-        check = True
+        check = False
     return check
