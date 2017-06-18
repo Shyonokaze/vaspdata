@@ -7,6 +7,7 @@ Created on Thu Jun 15 09:45:43 2017
 
 
 def readvasprun():
+#用于读取vasprun.xml，获得步长、总步数、原子数、晶格常数、所有时点的原子位置
     import xml.etree.ElementTree as ET 
     import numpy as np
     tree = ET.parse('vasprun.xml')
@@ -49,6 +50,7 @@ def readvasprun():
     return POTIM,NSW,natom,lc,posa
 
 def readpos(file): #此函数需针对selective dynamiscs的情况增加功能
+#读取POSCAR/CONTCAR获得晶格常数和原子坐标
     import numpy as np
     lc=np.mat(np.zeros((3,3)));
     fid = open(file,'rt')
@@ -73,6 +75,7 @@ def readpos(file): #此函数需针对selective dynamiscs的情况增加功能
     return lc,ap
 
 def writepos(file,pos,vel=None):
+#将原子坐标和初始速度（如果有）写在POSCAR的相应位置，其他位置于POSCAR保持一致
     fido = open(file,'rt')
     fidn = open('new_POSCAR','wt')
     while True:
@@ -93,6 +96,7 @@ def writepos(file,pos,vel=None):
             print('',file=fidn)
 
 def nearby(lc,arg1,arg2): 
+#将第二个原子按周期性晶格移动到离第一个原子最近邻的位置上
     import numpy as np
     new_pos=arg2
     dp1=arg1*lc
@@ -113,6 +117,7 @@ def nearby(lc,arg1,arg2):
     return arg2  
 
 def bond_length(ap,lc,arg1,arg2):
+#计算两原子的键长
     import numpy as np
     import vasp
     import math
@@ -126,6 +131,7 @@ def bond_length(ap,lc,arg1,arg2):
     return dis   
 
 def bond_angle(ap,lc,arg1,arg2,arg3):
+#计算两原子的键角
     import numpy as np
     import vasp
     import math
@@ -143,6 +149,7 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     return cita
 
 def velcal(lc,posa,potim): #须针对只对一个原子计算速度的情况增加功能
+#按牛顿法根据每一个时点的原子位置，计算每个原子的速度（输出结果为第2~n-1时点）
     import numpy as np
     import vasp
     vela = [0]*(len(posa)-2)
@@ -156,6 +163,7 @@ def velcal(lc,posa,potim): #须针对只对一个原子计算速度的情况增�
     return vela
 
 def findlimit(vela,num,direct):
+#找寻某方向上，某个原子，速度沿正反两方向的速率最大值的时点和速度大小
     import numpy as np
     num -=1
     if direct == 'x' or direct == 'X':
@@ -178,7 +186,8 @@ def findlimit(vela,num,direct):
             fvmin = i
     return fvmax,fvmin,vela[fvmax],vela[fvmin]
 
-def checkaway(lc,posa,vela,num):
+def checkaway(lc,posa,vela,num，dis_lim,v_d_lim):
+#检查原子是否跑离原位置
     import numpy as np
     import math
     import vasp
@@ -189,14 +198,13 @@ def checkaway(lc,posa,vela,num):
         posa[step][num,:]=vasp.nearby(lc,posa[0][num,:],posa[step][num,:])
         dp=(posa[step][num,:]-posa[0][num,:])*lc
         dis = math.sqrt(dp*np.transpose(dp))
-        if dis >8:
+        disv=dp*np.transpose(vela[step][num,:])
+        if dis > dis_lim:
             check = True
             break
-        elif dis > 5:
-            dir=dp*np.transpose(vela[step][num,:])
-            if dir > 0:
-                check = True
-                break
+        elif disv > v_d_lim:
+            check = True
+            break
         check = False
     return check
 
