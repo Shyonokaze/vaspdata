@@ -5,46 +5,48 @@ Created on Thu Jun 15 09:45:43 2017
 @author: pyh
 """
 
-def readvasprun(): #此函数需用直接读取xml包重写
+
+def readvasprun():
+    import xml.etree.ElementTree as ET 
     import numpy as np
-    import re
-    fid = open('vasprun.xml','rt')
+    tree = ET.parse('vasprun.xml')
+    root = tree.getroot()
+    
+    basis = True
+    n=0
     lc = np.mat(np.zeros((3,3)))
-    while True:
-        line = fid.readline()
-        if 'NSW' in line:
-            line = re.findall('(?<=> ).*(?=<)',line)
-            nstep = int(line[0])
-        if 'POTIM' in line:
-            line = re.findall('(?<=>).*(?=<)',line)
-            potim = float(line[0])
-        if '<atoms>' in line:
-            line = re.findall('(?<=> ).*(?=<)',line)
-            natom = int(line[0])            
-        if 'basis' in line:
-            for direct in range(3):
-                line = fid.readline()
-                line = line.replace('<v>','')
-                line = line.replace('</v>','')
-                lc[direct,:] = np.mat(line)
-            break
-    posa=[None]*(nstep+1)
-    for i in range(nstep+1):
-        posa[i]=np.mat(np.zeros((natom,3)))        
+    child = root[0]
+    
+    while child in root and basis:
+        child = root[n]
+        n += 1
+        for grandson in child:
+            if grandson.tag == 'atoms':
+                natom = int(grandson.text)
+            for ggrandson in grandson:
+                if 'NSW' in ggrandson.attrib.values():
+                    NSW = int(ggrandson.text)
+                if 'POTIM' in ggrandson.attrib.values():
+                    POTIM = float(ggrandson.text)
+                if 'basis' in ggrandson.attrib.values():
+                    for l in range(3):
+                        lc[l,:] = np.mat(ggrandson[l].text) 
+                    basis = False
+    atom=0
     step=0
-    atom=0        
-    while step <= nstep:
-        line = fid.readline()
-        if 'positions' in line:
-            for atom in range(natom):
-                line = fid.readline()
-                line = line.replace('<v>','')
-                line = line.replace('</v>','')
-                posa[step][atom,:] = np.mat(line)
-            step += 1
-            print(step) #测试
-    fid.close()
-    return potim,nstep+1,natom,lc,posa
+    
+    posa=[None]*NSW
+    for i in range(NSW):
+        posa[i]=np.mat(np.zeros((natom,3)))
+    
+    for child in root:
+        for grandson in child:
+            for ggrandson in grandson:
+                if 'positions' in ggrandson.attrib.values():
+                    for atom in range(natom):
+                        posa[step][atom,:]=np.mat(ggrandson[atom].text)
+                    step += 1
+    return POTIM,NSW,natom,lc,posa
 
 def readpos(file): #此函数需针对selective dynamiscs的情况增加功能
     import numpy as np
