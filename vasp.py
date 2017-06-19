@@ -11,8 +11,7 @@ def readvasprun():
     import xml.etree.ElementTree as ET 
     import numpy as np
     tree = ET.parse('vasprun.xml')
-    root = tree.getroot()
-    
+    root = tree.getroot()   
     basis = True
     n=0
     lc = np.mat(np.zeros((3,3)))
@@ -95,12 +94,12 @@ def writepos(file,pos,vel=None):
                 print('%.12e' % vel[i,j],file=fidn,end=' ') 
             print('',file=fidn)
 
-def nearby(lc,arg1,arg2): 
+def nearby(lc,pos1,pos2): 
 #将第二个原子按周期性晶格移动到离第一个原子最近邻的位置上
     import numpy as np
-    new_pos=arg2
-    dp1=arg1*lc
-    dp2=arg2*lc
+    new_pos=pos2
+    dp1=pos1*lc
+    dp2=pos2*lc
     dis=(dp1-dp2)*np.transpose(dp1-dp2)
     old_dis=0
     while np.all(old_dis != dis):
@@ -113,8 +112,7 @@ def nearby(lc,arg1,arg2):
                     if np.all(n_dis < dis):
                         new_pos=new_pos+np.mat([i-1,j-1,k-1])
                         dis=n_dis
-        arg2=new_pos
-    return arg2  
+    return new_pos  
 
 def bond_length(ap,lc,arg1,arg2):
 #计算两原子的键长
@@ -148,23 +146,50 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     cita=math.acos(ll1*np.transpose(ll2)/math.sqrt((ll1*np.transpose(ll1))*(ll2*np.transpose(ll2))))*180/math.pi
     return cita
 
-def velcal(lc,posa,potim): #须针对只对一个原子计算速度的情况增加功能
+def velcal(lc,posa,potim,num=None,bound=0.1): #须针对只对一个原子计算速度的情况增加功能
 #按牛顿法根据每一个时点的原子位置，计算每个原子的速度（输出结果为第2~n-1时点）
     import numpy as np
     import vasp
-    vela = [0]*(len(posa)-2)
-    for i in range(len(vela)):
-        vela[i]=np.mat(np.zeros((len(posa[1]),3)))
-    for i in range(len(posa)-2):
-        print(i) #测试
-        for j in range(len(posa[1])):
-            posa[i+2][j,:]=vasp.nearby(lc,posa[i][j,:],posa[i+2][j,:])
-            vela[i][j,:]=(posa[i+2][j,:]-posa[i][j,:])*lc/(2*potim)
-    return vela
+    if num == None:
+        timestep = 2*potim
+        vela = [0]*(len(posa)-2)
+        check = False
+        for i in range(len(vela)):
+            vela[i]=np.mat(np.zeros((len(posa[1]),3)))
+        for i in range(len(posa)-2):
+            print(i)  #测试
+            for j in range(len(posa[1])):
+                for k in range(3):
+#                    if abs(posa[i+2][j,k]) < 0.05 or abs(posa[i+2][j,k]-1) < 0.05 or abs(posa[i+2][j,k]) or abs(posa[i][j,k])> 1: #需做测试
+                    if abs(posa[i+2][j,k]) < bound or abs(posa[i+2][j,k]-1) < bound: #需做测试
+                        check = True
+                        break
+                if check:
+                    posa[i+2][j,:]=vasp.nearby(lc,posa[i][j,:],posa[i+2][j,:])
+                    check = False
+                vela[i][j,:]=(posa[i+2][j,:]-posa[i][j,:])*lc/timestep
+        return vela
+    else:
+        timestep = 2*potim
+        vela = [0]*(len(posa)-2)
+        check = False
+        for i in range(len(vela)):
+            vela[i]=np.mat(np.zeros((1,3)))
+        for i in range(len(vela)):
+            print(i)  #测试
+            for k in range(3):
+#                if abs(posa[i+2][num,k]) < 0.05 or abs(posa[i+2][num,k]-1) < 0.05 or abs(posa[i+2][num,k]) > 1 or abs(posa[i][num,k]) > 1: #需做测试
+                if abs(posa[i+2][num,k]) < bound or abs(posa[i+2][num,k]-1) < bound: #需做测试
+                    check = True
+                    break
+            if check:
+                posa[i+2][num,:]=vasp.nearby(lc,posa[i][num,:],posa[i+2][num,:])
+                check = False
+            vela[i][:]=(posa[i+2][num,:]-posa[i][num,:])*lc/timestep
+        return vela
 
-def findlimit(vela,num,direct):
+def findlimit(vela,num,direct=3):
 #找寻某方向上，某个原子，速度沿正反两方向的速率最大值的时点和速度大小
-    import numpy as np
     num -=1
     if direct == 'x' or direct == 'X':
         direct = 1
@@ -178,34 +203,51 @@ def findlimit(vela,num,direct):
     vmax=float(vela[0][num,direct])
     vmin=float(vela[0][num,direct])
     for i in range(len(vela)):
-        if np.all(vmax < float(vela[i][num,direct])):
+        if vmax < float(vela[i][num,direct]):
             vmax = float(vela[i][num,direct])
+            print('vmax:',vmax,float(vela[i][num,direct]))  #测试
             fvmax = i
-        if np.all(vmin > float(vela[i][num,direct])):
-            vmax = float(vela[i][num,direct])
+        if vmin > float(vela[i][num,direct]):
+            vmin = float(vela[i][num,direct])
+            print('vmin:',vmin,float(vela[i][num,direct]))  #测试
             fvmin = i
     return fvmax,fvmin,vela[fvmax],vela[fvmin]
 
-def checkaway(lc,posa,vela,num，dis_lim,v_d_lim):
+def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测试
 #检查原子是否跑离原位置
     import numpy as np
     import math
     import vasp
     num -= 1
     nstep = len(posa)
-    for n in range(7):
-        step=int((n+1)*nstep/8)
-        posa[step][num,:]=vasp.nearby(lc,posa[0][num,:],posa[step][num,:])
-        dp=(posa[step][num,:]-posa[0][num,:])*lc
-        dis = math.sqrt(dp*np.transpose(dp))
-        disv=dp*np.transpose(vela[step][num,:])
-        if dis > dis_lim:
-            check = True
-            break
-        elif disv > v_d_lim:
-            check = True
-            break
-        check = False
-    return check
+    check = False
+    if oneatom:
+        for n in range(7):
+            step=int((n+1)*nstep/8)
+            posa[step][num,:]=vasp.nearby(lc,posa[0][num,:],posa[step][num,:]) 
+            dp=(posa[step][num,:]-posa[0][num,:])*lc
+            dis = math.sqrt(dp*np.transpose(dp))
+            disv=dp*np.transpose(vela[step])
+            if dis > dis_lim:
+                check = True
+                break
+            elif disv > v_d_lim:
+                check = True
+                break       
+        return check        
+    else:
+        for n in range(7):
+            step=int((n+1)*nstep/8)
+            posa[step][num,:]=vasp.nearby(lc,posa[0][num,:],posa[step][num,:])
+            dp=(posa[step][num,:]-posa[0][num,:])*lc
+            dis = math.sqrt(dp*np.transpose(dp))
+            disv=dp*np.transpose(vela[step][num,:])
+            if dis > dis_lim:
+                check = True
+                break
+            elif disv > v_d_lim:
+                check = True
+                break       
+        return check
 
 #还需两个函数：二分法函数/创建新的目录及目录下的输入文件并移动到该目录下的函数
