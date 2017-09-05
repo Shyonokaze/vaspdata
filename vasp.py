@@ -13,10 +13,11 @@ def readvasprun():
     tree = ET.parse('vasprun.xml')
     root = tree.getroot()   
     basis = True
-    n=0
+
     lc = np.mat(np.zeros((3,3)))
-    child = root[0]
     
+    n=0
+    child = root[n]    
     while child in root and basis:
         child = root[n]
         n += 1
@@ -88,6 +89,7 @@ def writepos(file,pos,vel=None):
             print('%.16f' % pos[i,j],file=fidn,end=' ') 
         print('',file=fidn)
     print('',file=fidn)
+    
     if vel != None:
         for i in range(len(pos)):
             for j in range(3):
@@ -102,6 +104,7 @@ def nearby(lc,pos1,pos2):
     dp2=pos2*lc
     dis=(dp1-dp2)*np.transpose(dp1-dp2)
     old_dis=0
+    n_pos=new_pos.copy()
     while np.all(old_dis != dis):
         old_dis=dis
         for i in range(0,3):
@@ -110,8 +113,9 @@ def nearby(lc,pos1,pos2):
                     dp2=(new_pos+np.mat([i-1,j-1,k-1]))*lc
                     n_dis=(dp1-dp2)*np.transpose(dp1-dp2)
                     if np.all(n_dis < dis):
-                        new_pos=new_pos+np.mat([i-1,j-1,k-1])
+                        n_pos=new_pos+np.mat([i-1,j-1,k-1])
                         dis=n_dis
+        new_pos=n_pos.copy()
     return new_pos  
 
 def bond_length(ap,lc,arg1,arg2):
@@ -146,7 +150,7 @@ def bond_angle(ap,lc,arg1,arg2,arg3):
     cita=math.acos(ll1*np.transpose(ll2)/math.sqrt((ll1*np.transpose(ll1))*(ll2*np.transpose(ll2))))*180/math.pi
     return cita
 
-def velcal(lc,posa,potim,num=None,bound=0.1): #须针对只对一个原子计算速度的情况增加功能
+def velcal(lc,posa,potim,num=None,bound=0.1): 
 #按牛顿法根据每一个时点的原子位置，计算每个原子的速度（输出结果为第2~n-1时点）
     import numpy as np
     import vasp
@@ -157,7 +161,7 @@ def velcal(lc,posa,potim,num=None,bound=0.1): #须针对只对一个原子计算
         for i in range(len(vela)):
             vela[i]=np.mat(np.zeros((len(posa[1]),3)))
         for i in range(len(posa)-2):
-            print(i)  #测试
+#            print(i)  #测试
             for j in range(len(posa[1])):
                 for k in range(3):
 #                    if abs(posa[i+2][j,k]) < 0.05 or abs(posa[i+2][j,k]-1) < 0.05 or abs(posa[i+2][j,k]) or abs(posa[i][j,k])> 1: #需做测试
@@ -176,7 +180,7 @@ def velcal(lc,posa,potim,num=None,bound=0.1): #须针对只对一个原子计算
         for i in range(len(vela)):
             vela[i]=np.mat(np.zeros((1,3)))
         for i in range(len(vela)):
-            print(i)  #测试
+#            print(i)  #测试
             for k in range(3):
 #                if abs(posa[i+2][num,k]) < 0.05 or abs(posa[i+2][num,k]-1) < 0.05 or abs(posa[i+2][num,k]) > 1 or abs(posa[i][num,k]) > 1: #需做测试
                 if abs(posa[i+2][num,k]) < bound or abs(posa[i+2][num,k]-1) < bound: #需做测试
@@ -188,30 +192,54 @@ def velcal(lc,posa,potim,num=None,bound=0.1): #须针对只对一个原子计算
             vela[i][:]=(posa[i+2][num,:]-posa[i][num,:])*lc/timestep
         return vela
 
-def findlimit(vela,num,direct=3):
+def findlimit(vela,num=None,direct=3):
 #找寻某方向上，某个原子，速度沿正反两方向的速率最大值的时点和速度大小
-    num -=1
-    if direct == 'x' or direct == 'X':
-        direct = 1
-    elif direct == 'y' or direct == 'Y':
-        direct = 2
-    elif  direct == 'z' or direct == 'Z':
-        direct = 3
-    direct -=1
-    fvmax=0
-    fvmin=0
-    vmax=float(vela[0][num,direct])
-    vmin=float(vela[0][num,direct])
-    for i in range(len(vela)):
-        if vmax < float(vela[i][num,direct]):
-            vmax = float(vela[i][num,direct])
-            print('vmax:',vmax,float(vela[i][num,direct]))  #测试
-            fvmax = i
-        if vmin > float(vela[i][num,direct]):
-            vmin = float(vela[i][num,direct])
-            print('vmin:',vmin,float(vela[i][num,direct]))  #测试
-            fvmin = i
-    return fvmax,fvmin,vela[fvmax],vela[fvmin]
+    if num == None:
+        if direct == 'x' or direct == 'X':
+            direct = 1
+        elif direct == 'y' or direct == 'Y':
+            direct = 2
+        elif  direct == 'z' or direct == 'Z':
+            direct = 3
+        direct -=1
+        fvmax=0
+        fvmin=0
+        vmax=float(vela[0][0,direct])
+        vmin=float(vela[0][0,direct])
+        for i in range(len(vela)):
+            if vmax < float(vela[i][0,direct]):
+                vmax = float(vela[i][0,direct])
+#                print('vmax:',vmax,float(vela[i][num,direct]))  #测试
+                fvmax = i
+            if vmin > float(vela[i][0,direct]):
+                vmin = float(vela[i][0,direct])
+#                print('vmin:',vmin,float(vela[i][num,direct]))  #测试
+                fvmin = i
+        return fvmax,fvmin,vela[fvmax],vela[fvmin]
+
+    else:
+        num -=1
+        if direct == 'x' or direct == 'X':
+            direct = 1
+        elif direct == 'y' or direct == 'Y':
+            direct = 2
+        elif  direct == 'z' or direct == 'Z':
+            direct = 3
+        direct -=1
+        fvmax=0
+        fvmin=0
+        vmax=float(vela[0][num,direct])
+        vmin=float(vela[0][num,direct])
+        for i in range(len(vela)):
+            if vmax < float(vela[i][num,direct]):
+                vmax = float(vela[i][num,direct])
+#                print('vmax:',vmax,float(vela[i][num,direct]))  #测试
+                fvmax = i
+            if vmin > float(vela[i][num,direct]):
+                vmin = float(vela[i][num,direct])
+#                print('vmin:',vmin,float(vela[i][num,direct]))  #测试
+                fvmin = i
+        return fvmax,fvmin,vela[fvmax],vela[fvmin]
 
 def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测试
 #检查原子是否跑离原位置
@@ -251,3 +279,13 @@ def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测�
         return check
 
 #还需两个函数：二分法函数/创建新的目录及目录下的输入文件并移动到该目录下的函数
+
+
+if __name__=='__main__':
+    vasprun=readvasprun()
+    potim=vasprun[0]
+    nsw=vasprun[1]
+    natom=vasprun[2]
+    lc=vasprun[3]
+    posa=vasprun[4]
+    vela=velcal(lc,posa,potim)
