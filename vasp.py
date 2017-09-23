@@ -95,7 +95,25 @@ def writepos(file,pos,vel=None):
             for j in range(3):
                 print('%.12e' % vel[i,j],file=fidn,end=' ') 
             print('',file=fidn)
+            
 
+def filemv():
+#创建新的目录以便vasp计算
+    import os
+    import shutil
+    fid = open('record','rt')
+    line=fid.readlines()
+    ind=line[0].split()
+    if not os.path.exists(ind[0]):
+        os.mkdir(ind[0])
+        shutil.copy('POSCAR','./'+ind[0]+'/POSCAR')
+        os.symlink('../INCAR','./'+ind[0]+'/INCAR')
+        os.symlink('../KPOINTS','./'+ind[0]+'/KPOINTS')
+        os.symlink('../POTCAR','./'+ind[0]+'/POTCAR')
+        if os.path.exists('vdw_kernel.bindat'):
+            os.symlink('../vdw_kernel.bindat','./'+ind[0]+'/vdw_kernel.bindat')
+    fid.close()
+    
 def nearby(lc,pos1,pos2): 
 #将第二个原子按周期性晶格移动到离第一个原子最近邻的位置上
     import numpy as np
@@ -116,7 +134,8 @@ def nearby(lc,pos1,pos2):
                         n_pos=new_pos+np.mat([i-1,j-1,k-1])
                         dis=n_dis
         new_pos=n_pos.copy()
-    return new_pos  
+    return new_pos
+          
 
 def bond_length(ap,lc,arg1,arg2):
 #计算两原子的键长
@@ -215,7 +234,7 @@ def findlimit(vela,num=None,direct=3):
                 vmin = float(vela[i][0,direct])
 #                print('vmin:',vmin,float(vela[i][num,direct]))  #测试
                 fvmin = i
-        return fvmax,fvmin,vela[fvmax],vela[fvmin]
+        return fvmax,fvmin
 
     else:
         num -=1
@@ -239,8 +258,8 @@ def findlimit(vela,num=None,direct=3):
                 vmin = float(vela[i][num,direct])
 #                print('vmin:',vmin,float(vela[i][num,direct]))  #测试
                 fvmin = i
-        return fvmax,fvmin,vela[fvmax],vela[fvmin]
-
+        return fvmax,fvmin
+    
 def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测试
 #检查原子是否跑离原位置
     import numpy as np
@@ -278,14 +297,39 @@ def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测�
                 break       
         return check
 
-#还需两个函数：二分法函数/创建新的目录及目录下的输入文件并移动到该目录下的函数
 
+def bisec(check):
+    fid = open('record','rt')
+    line=fid.readlines()
+    ind=[float(line[-1].split()[i]) for i in range(len(line[-1].split()))]
+    
+    fid.close()
+    fidr = open('record','a+')
+    if abs(abs(ind[2]-ind[0])-0.001)<=1e-6:
+        print(check,file=fidr)
+        return 0
+    elif check:
+        print('%.3f %.3f %.3f'% (float(int((ind[0]+ind[1])*500))/1000,ind[1],ind[0]),file=fidr)
+        return float(int((ind[0]+ind[1])*500))/1000
+    elif abs(ind[0]-ind[2])<=1e-6:
+        if abs(ind[0]-0.05)<=1e-6:
+            print('end',file=fidr)
+            return 0
+        else:
+            print('%.3f %.3f %.3f'% (ind[0]+0.01,ind[1]+0.01,ind[2]+0.01),file=fidr)
+            return ind[0]+0.01
+    else:
+        print('%.3f %.3f %.3f'% (float(int((ind[0]+ind[2])*500))/1000,ind[0],ind[2]),file=fidr)
+        return float(int((ind[0]+ind[2])*500))/1000
+    fidr.close()   
 
 if __name__=='__main__':
-    vasprun=readvasprun()
-    potim=vasprun[0]
-    nsw=vasprun[1]
-    natom=vasprun[2]
-    lc=vasprun[3]
-    posa=vasprun[4]
-    vela=velcal(lc,posa,potim)
+#    vasprun=readvasprun()
+#    potim=vasprun[0]
+#    nsw=vasprun[1]
+#    natom=vasprun[2]
+#    lc=vasprun[3]
+#    posa=vasprun[4]
+#    vela=velcal(lc,posa,potim)
+#    filemv()
+    a=bisec(True)   
