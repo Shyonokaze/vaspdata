@@ -62,22 +62,27 @@ def readpos(file): #此函数需针对selective dynamiscs的情况增加功能
     natom=np.mat(fid.readline())
     number=natom.sum()
     ap=np.mat(np.zeros((number,3)))
+    avel=np.mat(np.zeros((number,3)))
     while not 'Direct' in line:
         line = str(fid.readline())
-    for i in range(0,number):
+    for i in range(0,number):  
         line = fid.readline()
         if 'T' in line:
-            line=line.replace('T','');
+            line=line.replace('T','')
         if 'F' in line:
             line=line.replace('F','')
         ap[i,:]=np.mat(line)
+    line = fid.readline()
+    for i in range(0,number):  
+        line = fid.readline()
+        avel[i,:]=np.mat(line)
     fid.close()
-    return lc,ap
+    return ap,avel
 
-def writepos(file,pos,vel=None):
+def writepos(file_input,file_output,pos,vel=None):
 #将原子坐标和初始速度（如果有）写在POSCAR的相应位置，其他位置于POSCAR保持一致
-    fido = open(file,'rt')
-    fidn = open('new_POSCAR','wt')
+    fido = open(file_input,'rt')
+    fidn = open(file_output,'wt')
     while True:
         line=fido.readline()
         print(line[0:(len(line)-1)],file=fidn)
@@ -97,21 +102,22 @@ def writepos(file,pos,vel=None):
             print('',file=fidn)
             
 
-def filemv():
+def filemv(incar):
 #创建新的目录以便vasp计算
     import os
     import shutil
     fid = open('record','rt')
     line=fid.readlines()
-    ind=line[0].split()
-    if not os.path.exists(ind[0]):
-        os.mkdir(ind[0])
-        shutil.copy('POSCAR','./'+ind[0]+'/POSCAR')
-        os.symlink('../INCAR','./'+ind[0]+'/INCAR')
-        os.symlink('../KPOINTS','./'+ind[0]+'/KPOINTS')
-        os.symlink('../POTCAR','./'+ind[0]+'/POTCAR')
+    ind=line[-1].replace('\n','')
+#    ind=line[-1]
+    if not os.path.exists(ind[:]):
+        os.mkdir(ind[:])
+        shutil.copy('./POSCAR','./'+ind[:]+'/POSCAR')
+        os.symlink('../'+incar,'./'+ind[:]+'/INCAR')
+        os.symlink('../KPOINTS','./'+ind[:]+'/KPOINTS')
+        os.symlink('../POTCAR','./'+ind[:]+'/POTCAR')
         if os.path.exists('vdw_kernel.bindat'):
-            os.symlink('../vdw_kernel.bindat','./'+ind[0]+'/vdw_kernel.bindat')
+            os.symlink('../vdw_kernel.bindat','./'+ind[:]+'/vdw_kernel.bindat')
     fid.close()
     
 def nearby(lc,pos1,pos2): 
@@ -301,26 +307,31 @@ def checkaway(lc,posa,vela,num,oneatom=True,dis_lim=5,v_d_lim=0.10):#需做测�
 def bisec(check):
     fid = open('record','rt')
     line=fid.readlines()
-    ind=[float(line[-1].split()[i]) for i in range(len(line[-1].split()))]
-    
+    ran=[float(line[-2].split()[i]) for i in range(len(line[-2].split()))]
+    ind=float(line[-1])
     fid.close()
     fidr = open('record','a+')
-    if abs(abs(ind[2]-ind[0])-0.001)<=1e-6:
+    if '\n' not in line[-1]:
+        print('',file=fidr)
+    if abs(abs(ran[1]-ind)-0.01)<=1e-6:
         print(check,file=fidr)
         return 0
     elif check:
-        print('%.3f %.3f %.3f'% (float(int((ind[0]+ind[1])*500))/1000,ind[1],ind[0]),file=fidr)
-        return float(int((ind[0]+ind[1])*500))/1000
-    elif abs(ind[0]-ind[2])<=1e-6:
-        if abs(ind[0]-0.05)<=1e-6:
+        print('%.3f %.3f'% (ran[0],ind),file=fidr)
+        print('%.3f'% (float(int((ind+ran[0])*50))/100),file=fidr)
+        return float(int((ind+ran[0])*50))/100
+    elif abs(ind-ran[1])<=1e-6:
+        if abs(ind-0.5)<=1e-6:
             print('end',file=fidr)
             return 0
         else:
-            print('%.3f %.3f %.3f'% (ind[0]+0.01,ind[1]+0.01,ind[2]+0.01),file=fidr)
-            return ind[0]+0.01
+            print('%.3f %.3f'% (ran[0]+0.1,ran[1]+0.1),file=fidr)
+            print('%.3f'% (ind+0.1),file=fidr)
+            return ind+0.01
     else:
-        print('%.3f %.3f %.3f'% (float(int((ind[0]+ind[2])*500))/1000,ind[0],ind[2]),file=fidr)
-        return float(int((ind[0]+ind[2])*500))/1000
+        print('%.3f %.3f'% (ind,ran[1]),file=fidr)
+        print('%.3f'% (float(int((ind+ran[1])*50))/100),file=fidr)
+        return float(int((ind+ran[1])*50))/100
     fidr.close()   
 
 if __name__=='__main__':
@@ -331,5 +342,6 @@ if __name__=='__main__':
 #    lc=vasprun[3]
 #    posa=vasprun[4]
 #    vela=velcal(lc,posa,potim)
-#    filemv()
-    a=bisec(True)   
+    filemv('INCAR')
+#    a=bisec(False)   
+    
