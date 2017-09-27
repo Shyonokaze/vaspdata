@@ -5,6 +5,45 @@ Created on Thu Jun 15 09:45:43 2017
 @author: pyh
 """
 
+def NVT_mk():
+    import os
+    os.mkdir('NVT')
+    os.symlink('../INCAR_NVT','./NVT/INCAR')
+    os.symlink('../KPOINTS','./NVT/KPOINTS')
+    os.symlink('../POTCAR','./NVT/POTCAR')
+    os.symlink('../POSCAR','./NVT/POSCAR')
+    if os.path.exists('vdw_kernel.bindat'):
+        os.symlink('../vdw_kernel.bindat','./NVT/vdw_kernel.bindat')
+        
+def NVE_mk(dirname):
+    import os
+    import shutil
+    os.mkdir(dirname)
+    os.symlink('../INCAR_NVE','./'+dirname+'/INCAR')
+    os.symlink('../KPOINTS','./'+dirname+'/KPOINTS')
+    os.symlink('../POTCAR','./'+dirname+'/POTCAR')
+    if os.path.exists('vdw_kernel.bindat'):
+        os.symlink('../vdw_kernel.bindat','./NVT/vdw_kernel.bindat')
+    shutil.copy('./pos_vmax','./'+dirname+'/pos_vmax')
+    shutil.copy('./record','./'+dirname+'/record')
+
+def filemv(incar):
+#创建新的目录以便vasp计算
+    import os
+    import shutil
+    fid = open('record','rt')
+    line=fid.readlines()
+#    ind=line[-1].replace('\n','')
+    ind=line[-1]
+    if not os.path.exists(ind[:]):
+        os.mkdir(ind[:])
+        shutil.copy('./POSCAR','./'+ind[:]+'/POSCAR')
+        os.symlink('../'+incar,'./'+ind[:]+'/INCAR')
+        os.symlink('../KPOINTS','./'+ind[:]+'/KPOINTS')
+        os.symlink('../POTCAR','./'+ind[:]+'/POTCAR')
+        if os.path.exists('vdw_kernel.bindat'):
+            os.symlink('../vdw_kernel.bindat','./'+ind[:]+'/vdw_kernel.bindat')
+    fid.close()
 
 def readvasprun():
 #用于读取vasprun.xml，获得步长、总步数、原子数、晶格常数、所有时点的原子位置
@@ -101,24 +140,11 @@ def writepos(file_input,file_output,pos,vel=None):
                 print('%.12e' % vel[i,j],file=fidn,end=' ') 
             print('',file=fidn)
             
-
-def filemv(incar):
-#创建新的目录以便vasp计算
-    import os
-    import shutil
-    fid = open('record','rt')
-    line=fid.readlines()
-#    ind=line[-1].replace('\n','')
-    ind=line[-1]
-    if not os.path.exists(ind[:]):
-        os.mkdir(ind[:])
-        shutil.copy('./POSCAR','./'+ind[:]+'/POSCAR')
-        os.symlink('../'+incar,'./'+ind[:]+'/INCAR')
-        os.symlink('../KPOINTS','./'+ind[:]+'/KPOINTS')
-        os.symlink('../POTCAR','./'+ind[:]+'/POTCAR')
-        if os.path.exists('vdw_kernel.bindat'):
-            os.symlink('../vdw_kernel.bindat','./'+ind[:]+'/vdw_kernel.bindat')
-    fid.close()
+def NVE_first(num,fv):
+    import vasp
+    ap,avel=vasp.readpos(fv)
+    avel[num-1,2]=avel[num-1,2]-0.1
+    vasp.writepos(fv,'POSCAR',ap,avel)
     
 def nearby(lc,pos1,pos2): 
 #将第二个原子按周期性晶格移动到离第一个原子最近邻的位置上
@@ -199,6 +225,7 @@ def velcal(lc,posa,potim,num=None,bound=0.1):
                 vela[i][j,:]=(posa[i+2][j,:]-posa[i][j,:])*lc/timestep
         return vela
     else:
+        num -= 1
         timestep = 2*potim
         vela = [0]*(len(posa)-2)
         check = False
@@ -334,6 +361,7 @@ def bisec(check):
         print('%.3f'% (float(int((ind+ran[1])*50))/100),file=fidr)
         return (float(int((ind+ran[1])*50))/100-ind)
     fidr.close()   
+
 
 if __name__=='__main__':
 #    vasprun=readvasprun()
