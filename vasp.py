@@ -108,8 +108,8 @@ def filemv(incar):
     import shutil
     fid = open('record','rt')
     line=fid.readlines()
-    ind=line[-1].replace('\n','')
-#    ind=line[-1]
+#    ind=line[-1].replace('\n','')
+    ind=line[-1]
     if not os.path.exists(ind[:]):
         os.mkdir(ind[:])
         shutil.copy('./POSCAR','./'+ind[:]+'/POSCAR')
@@ -315,11 +315,12 @@ def bisec(check):
         print('',file=fidr)
     if abs(abs(ran[1]-ind)-0.01)<=1e-6:
         print(check,file=fidr)
+        print('end',file=fidr)
         return 0
     elif check:
         print('%.3f %.3f'% (ran[0],ind),file=fidr)
         print('%.3f'% (float(int((ind+ran[0])*50))/100),file=fidr)
-        return float(int((ind+ran[0])*50))/100
+        return (float(int((ind+ran[0])*50))/100-ind)
     elif abs(ind-ran[1])<=1e-6:
         if abs(ind-0.5)<=1e-6:
             print('end',file=fidr)
@@ -327,11 +328,11 @@ def bisec(check):
         else:
             print('%.3f %.3f'% (ran[0]+0.1,ran[1]+0.1),file=fidr)
             print('%.3f'% (ind+0.1),file=fidr)
-            return ind+0.01
+            return 0.1
     else:
         print('%.3f %.3f'% (ind,ran[1]),file=fidr)
         print('%.3f'% (float(int((ind+ran[1])*50))/100),file=fidr)
-        return float(int((ind+ran[1])*50))/100
+        return (float(int((ind+ran[1])*50))/100-ind)
     fidr.close()   
 
 if __name__=='__main__':
