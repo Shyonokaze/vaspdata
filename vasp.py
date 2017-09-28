@@ -341,7 +341,10 @@ def bisec(check):
     if '\n' not in line[-1]:
         print('',file=fidr)
     if abs(abs(ran[1]-ind)-0.001)<=1e-6:
-        print(check,file=fidr)
+        if check:
+            print('%.3f %.3f'% (ran[0],ind),file=fidr)
+        else:
+            print('%.3f %.3f'% (ind,ran[1]),file=fidr)
         print('end',file=fidr)
         return 0
     elif check:
@@ -361,6 +364,7 @@ def bisec(check):
         print('%.3f'% (float(int((ind+ran[1])*500))/1000),file=fidr)
         return (float(int((ind+ran[1])*500))/1000-ind)
     fidr.close()   
+ 
 
 
 if __name__=='__main__':
