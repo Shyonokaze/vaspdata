@@ -340,14 +340,14 @@ def bisec(check):
     fidr = open('record','a+')
     if '\n' not in line[-1]:
         print('',file=fidr)
-    if abs(abs(ran[1]-ind)-0.01)<=1e-6:
+    if abs(abs(ran[1]-ind)-0.001)<=1e-6:
         print(check,file=fidr)
         print('end',file=fidr)
         return 0
     elif check:
         print('%.3f %.3f'% (ran[0],ind),file=fidr)
-        print('%.3f'% (float(int((ind+ran[0])*50))/100),file=fidr)
-        return (float(int((ind+ran[0])*50))/100-ind)
+        print('%.3f'% (float(int((ind+ran[0])*500))/1000),file=fidr)
+        return (float(int((ind+ran[0])*500))/1000-ind)
     elif abs(ind-ran[1])<=1e-6:
         if abs(ind-0.5)<=1e-6:
             print('end',file=fidr)
@@ -358,8 +358,8 @@ def bisec(check):
             return 0.1
     else:
         print('%.3f %.3f'% (ind,ran[1]),file=fidr)
-        print('%.3f'% (float(int((ind+ran[1])*50))/100),file=fidr)
-        return (float(int((ind+ran[1])*50))/100-ind)
+        print('%.3f'% (float(int((ind+ran[1])*500))/1000),file=fidr)
+        return (float(int((ind+ran[1])*500))/1000-ind)
     fidr.close()   
 
 
