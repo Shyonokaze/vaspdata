@@ -10,8 +10,12 @@ import sys
 sys.path.append('/public/home/users/ruc001/bin')
 import vasp
 
-run='/public/software/mpi/openmpi/1.6.5/intel/bin/mpirun -np $NP -machinefile $PBS_NODEFILE --mca btlself,sm,openib --bind-to-core  ~/bin/vasp5c  | tee sout'
-num=52
+NP=sys.argv[1]
+PBS_NODEFILE=sys.argv[2]
+num=int(sys.argv[3])
+
+run='/public/software/mpi/openmpi/1.6.5/intel/bin/mpirun -np '+NP+' -machinefile '+PBS_NODEFILE+'
+ --mca btl self,sm,openib --bind-to-core  ~/bin/vasp5c  | tee sout'
 
 os.mkdir('NVT')
 os.chdir('NVT')
@@ -25,7 +29,7 @@ os.system(run)
 potim,nsw,natom,lc,posa=vasp.readvasprun()
 
 vela=vasp.velcal(lc,posa,potim)
-fvmax,fvmin=vasp.findlimit(vela,num=52)
+fvmax,fvmin=vasp.findlimit(vela,num)
 
 vasp.writepos('POSCAR','pos_vmax',posa[fvmax],vela[fvmax])
 vasp.writepos('POSCAR','pos_vmin',posa[fvmin],vela[fvmin])
@@ -66,7 +70,7 @@ while 'end' not in line:
 
     if ns:
         ap,avel=vasp.readpos('POSCAR')
-        avel[num-1,2]=avel[num-1,2]-ns
+        avel[num-1,2]=avel[numi-1,2]-ns
         vasp.writepos('POSCAR','pos_next',ap,avel)
     
     shutil.copy('./pos_next','../POSCAR')
