@@ -78,8 +78,8 @@ while 'end' not in line:
     potim,nsw,natom,lc,posa=vasp.readvasprun()
     vela1=vasp.velcal(lc,posa,potim,num1)
     vela2=vasp.velcal(lc,posa,potim,num2)
-    check1=vasp.checkaway(lc,posa,vela,num1)
-    check2=vasp.checkaway(lc,posa,vela,num2)
+    check1=vasp.checkaway(lc,posa,vela1,num1)
+    check2=vasp.checkaway(lc,posa,vela2,num2)
 
     ns=vasp.bisec(check1)
 
@@ -132,8 +132,8 @@ while 'end' not in line:
     potim,nsw,natom,lc,posa=vasp.readvasprun()
     vela1=vasp.velcal(lc,posa,potim,num1)
     vela2=vasp.velcal(lc,posa,potim,num2)
-    check1=vasp.checkaway(lc,posa,vela,num1)
-    check2=vasp.checkaway(lc,posa,vela,num2)
+    check1=vasp.checkaway(lc,posa,vela1,num1)
+    check2=vasp.checkaway(lc,posa,vela2,num2)
 
     ns=vasp.bisec(check1)
 
