@@ -35,7 +35,7 @@ def filemv(incar):
     line=fid.readlines()
 #    ind=line[-1].replace('\n','')
     ind=line[-1]
-    if not os.path.exists(ind[:]):
+    try:
         os.mkdir(ind[:])
         shutil.copy('./POSCAR','./'+ind[:]+'/POSCAR')
         os.symlink('../'+incar,'./'+ind[:]+'/INCAR')
@@ -43,6 +43,8 @@ def filemv(incar):
         os.symlink('../POTCAR','./'+ind[:]+'/POTCAR')
         if os.path.exists('vdw_kernel.bindat'):
             os.symlink('../vdw_kernel.bindat','./'+ind[:]+'/vdw_kernel.bindat')
+    except:
+        pass
     fid.close()
 
 def readvasprun():
@@ -352,7 +354,7 @@ def bisec(check):
         print('%.3f'% (float(int((ind+ran[0])*500))/1000),file=fidr)
         return (float(int((ind+ran[0])*500))/1000-ind)
     elif abs(ind-ran[1])<=1e-6:
-        if abs(ind-0.5)<=1e-6:
+        if ind>=0.5:
             print('end',file=fidr)
             return 0
         else:
